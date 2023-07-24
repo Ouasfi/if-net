@@ -74,7 +74,11 @@ class VoxelizedDataset(Dataset):
         else:
             name = '/voxelized_point_cloud_{}res_{}points.npz' if not self.noisy else '/noisy_voxelized_point_cloud_{}res_{}_std_{}points.npz'
             voxel_path = path + name.format(self.res, self.pointcloud_samples, self.std_noise)
-            occupancies = np.unpackbits(np.load(voxel_path)['compressed_occupancies'])
+            input_pc = np.load(voxel_path)
+            pc = input_pc.f.point_cloud
+            p = pc.copy()
+            p[:, 0], p[:, 2] = pc[:, 2], pc[:, 0]
+            occupancies = np.unpackbits(input_pc['compressed_occupancies'])
             input = np.reshape(occupancies, (self.res,)*3)
 
         points = []
@@ -99,7 +103,7 @@ class VoxelizedDataset(Dataset):
         assert len(occupancies) == self.num_sample_points
         assert len(coords) == self.num_sample_points
         p_coords = np.concatenate((self.get_level_set(path),np.array(coords, dtype=np.float32))) if self.matching_model else np.array(coords, dtype=np.float32)
-        return {'grid_coords':p_coords,'occupancies': np.array(occupancies, dtype=np.float32),'points':np.array(points, dtype=np.float32), 'inputs': np.array(input, dtype=np.float32), 'path' : path}
+        return {'pointcloud': np.array(2*p, dtype=np.float32), 'grid_coords':p_coords,'occupancies': np.array(occupancies, dtype=np.float32),'points':np.array(points, dtype=np.float32), 'inputs': np.array(input, dtype=np.float32), 'path' : path}
 
     def get_loader(self, subset = None, shuffle =True):
         ds = torch.utils.data.Subset(self, indices= subset) if subset is not None else self
